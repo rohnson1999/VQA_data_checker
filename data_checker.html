@@ -1,0 +1,853 @@
+<!DOCTYPE html>
+<html lang="zh">
+    <head>
+      <meta charset="UTF-8">
+      <title>VQA数据集查看</title>
+      <style>
+        body {
+          background-color: var(--background-color); /* 使用CSS变量设置背景色 */
+          color: var(--text-color); /* 使用CSS变量设置文本颜色 */
+        }
+        h1 {
+          text-align: center;
+          margin: 0;
+        }
+        :root {
+          --background-color: white; /* 默认明亮主题背景色 */
+          --text-color: black; /* 默认明亮主题文本颜色 */
+        }
+    
+        body.dark-mode {
+          --background-color: rgb(31, 31, 31); /* 暗黑主题背景色 */
+          --text-color: rgb(176, 176, 176); /* 暗黑主题文本颜色 */
+        }
+        .mode-toggle {
+          margin-top: 10px;
+        }
+        table {
+          border-collapse: collapse; /* 合并表格边框 */
+          font-family: Arial, sans-serif; /* 设置字体 */
+          font-size: 25px; /* 设置字体大小 */
+        }
+        th, td {
+          border: 1px solid black;    /* 设置表格边框 */
+          padding: 8px;
+        }
+        body.dark-mode th,
+        body.dark-mode td {
+        border-color: white; /* 暗黑模式下表格边框颜色 */
+        }
+        .container {
+          display: flex;
+          align-items: center;
+          gap: 20px;
+          background-color: #F2F2F2;
+          padding: 10px;
+        }
+        .mode-toggle {
+          display: flex;
+          align-items: center;
+          background-color: #E0E0E0;
+          padding: 10px;
+        }
+        .file-section {
+          background-color: #D3D3D3;
+          padding: 10px;
+        }
+        .image-section {
+          display: flex; /* 使用 Flexbox 布局 */
+          flex-direction: row; /* 水平排列子元素 */
+          background-color: #D3D3D3;
+          padding: 10px;
+        }
+        #Image {
+          position: absolute;
+          cursor: default; /* 默认鼠标样式 */
+          top: 0;
+          left: 0;
+          transition: transform 0.2s;
+        }
+        #Image:active {
+          cursor: grabbing; /* 拖动时的鼠标样式 */
+        }
+        .bbox {
+          position: absolute;
+          border: 2px solid red;
+          /* pointer-events: none; */ /* 移除这个属性 */
+        }
+        .bbox-label {
+          position: absolute;
+          color: white; /* 文本颜色 */
+          background-color: rgba(0, 0, 0, 0.7); /* 背景颜色 */
+          padding: 2px 4px; /* 内边距 */
+          border-radius: 3px; /* 圆角 */
+          font-size: 12px; /* 字体大小 */
+          transform: translateY(-100%); /* 上移文本 */
+        }
+        .bbox.selected {
+          border-color: rgb(0, 30, 255); /* 选中时的边框颜色 */
+          /*pointer-events: auto;  允许点击事件 */
+        }
+        #selector {
+          width: 300px; /* 设置选择器宽度 */
+          padding: 10px; /* 内边距 */
+          font-size: 16px; /* 字体大小 */
+          border: 1px solid #ccc; /* 边框样式 */
+          border-radius: 4px; /* 圆角边框 */
+          background-color: #f9f9f9; /* 背景颜色 */
+          cursor: pointer; /* 鼠标悬停时的样式 */
+          transition: border-color 0.3s; /* 边框颜色变化过渡 */
+
+        }
+        #selector:focus {
+            border-color: #007BFF; /* 获取焦点时边框颜色 */
+            outline: none; /* 去掉默认的轮廓 */
+        }
+        .editable-textarea {
+          width: 40%; /* 让文本框占满可用宽度 */
+          min-height: 50px; /* 设置最小高度 */
+          padding: 8px; /* 内边距 */
+          margin-bottom: 10px; /* 下边距 */
+          font-size: 25px; /* 字体大小 */
+          resize: both; /* 允许用户调整大小 */
+          box-sizing: border-box; /* 包含内边距和边框 */
+          font-family: Arial, sans-serif; /* 设置字体 */
+        }
+        .checkbox-container {
+          position: absolute;
+          top: 0;
+          left: 0;
+        }
+        .toggle-button {
+          cursor: pointer;
+          background-color: rgba(173, 216, 230, 0.7); /* 浅蓝色半透明 */
+          color: #000;
+          border: none;
+          padding: 10px 20px;
+          border-radius: 5px;
+          font-size: 16px;
+          margin-left: 10px; /* 与标题的间距 */
+          box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+          transition: background-color 0.3s;
+        }
+        .toggle-button:hover {
+            background-color: rgba(173, 216, 230, 1); /* 悬停变为不透明 */
+        }
+        .description {
+            margin-top: 20px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            padding: 10px;
+            display: none; /* 初始隐藏 */
+            background-color: #fff; /* 背景颜色 */
+        }
+      </style>
+      </head>
+<body>
+
+<div class="checkbox-container" style="top: 50px;"></div>
+  <label>
+      <input type="checkbox" id="toggleControl2" checked>
+      启用缩放和移动（缩放后轻微移动图片以更新锚框，启用状态下无法选框！）
+  </label>
+</div>
+
+<h1 style="text-align: center; margin: 0;">VQA数据集查看系统
+  <button class="toggle-button" onclick="toggleDescription()" style="margin-left: 10px;">查看系统说明</button>
+</h1>
+
+  <div class="description" id="description">
+    <p>本系统用于查看VQA数据集中的图像和标注信息，支持查看图像、标注信息和边界框，并提供缩放和移动功能。<br>
+      【1】首先通过本地上传的方式加载CSV文件，之后通过上下（左右）键或“显示上下一行”按钮，即可查看不同行的图像和标注信息。同时支持直接输入行索引进行跳转，输入完成后通过上下（左右）键或“显示上下一行”按钮进行跳转（需要手动移动一个索引）。<br>
+      【2】图像可以通过鼠标滚轮进行缩放，也可以通过鼠标拖动进行移动。但是缩放后需要轻微移动图片以更新边界框。<br>
+      【3】当你完成图片的缩放和移动后，取消勾选“启用缩放和移动”选项，此时图像不再支持缩放和移动。<br>
+      【4】接下来点击边界框即可选择，选中后会变为蓝色。<br>
+      【5】在下方选择框中选择五个中最好的VQA问题，即可在下方文本框中编辑问题、回答和VG指导信息。<br>
+      【6】编辑完成后点击“保存编辑好的文本数据”按钮即可保存编辑好的文本数据。注意对于每一条数据，都要进行保存，切换后已遍及的数据不会自动保存。<br>
+      【7】最后点击“导出全部标注信息”按钮即可导出所有标注信息。不需要每次都点击，只需在所有数据都编辑完后点击一次即可。<br>
+      相关问题请移步微信群讨论:>
+    </p>
+  </div>
+
+  <div class="container">
+    <div class="mode-toggle">
+      <label for="darkModeCheckbox">切换模式：</label>
+      <input type="checkbox" id="darkModeCheckbox" onchange="toggleDarkMode()">
+      <label for="darkModeCheckbox">暗黑模式</label>
+    </div>
+
+    <div class="file-section">
+      <label for="csvFileInput">请上传CSV文件：</label>
+      <input type="file" id="csvFileInput" onchange="loadCSV()">
+    </div>
+
+    <div class="file-section">
+      <button onclick="displayPreviousRow()">显示上一行</button>
+      <input type="number" id="indexInput" placeholder="输入行索引" value="0">
+      <button onclick="displayNextRow()">显示下一行</button>
+    </div>
+
+    <div class="file-section">
+      <button id="saveButton">①批量暂存标注框</button>
+      <button id="downloadButton">②下载全部标注框数据至本地(JSON)</button>
+    </div>
+
+    <label>
+      <input type="checkbox" id="toggleControl1" checked>
+      启用缩放和移动（缩放后轻微移动图片以更新锚框，启用状态下无法选框！）
+    </label>
+    <label>
+      <input type="checkbox" id="toggleControl3">
+      隐藏标注框
+    </label>
+  </div>
+
+  <table id="filenameTable"></table>
+  <table id="csvTable"></table>
+
+  <div class="image-section">
+
+    <img id="Image" src="" alt="image">
+    <div id="bboxesContainer"></div>
+    <div>
+      <select id="selector" onchange="updateFields()">
+        <option value="">请选择五个中最好的VQA问题</option>
+        <option value="1">1</option>
+        <option value="2">2</option>
+        <option value="3">3</option>
+        <option value="4">4</option>
+        <option value="5">5</option>
+      </select>
+      <button id="saveButton" onclick="saveText()">下载编辑好的文本数据至本地</button>
+    </div>
+  </div>
+  <div id="editableFields" class="editable"></div>
+  </div>
+  
+
+
+  <script>
+    var csvData = null; // 全局变量，用于存储CSV数据
+    var folderPath = "\\img_pool\\"; // 全局变量，用于存储文件夹地址
+    var bboxPath = "\\label_2\\"; // 全局变量，用于存储边界框地址【阿里云版本】
+    //var bboxPath = "\\training\\label_2\\"; // 全局变量，用于存储边界框地址【本地运行版本】
+    var svaePath = ""; // 全局变量，用于存储保存地址
+    var org_prompt = ""; // 全局变量，用于存储原始prompt
+
+    // 读取CSV文件
+    function loadCSV() {
+      var fileInput = document.getElementById("csvFileInput");
+      var file = fileInput.files[0];
+      var reader = new FileReader();
+
+      reader.onload = function(e) {
+        var contents = e.target.result;
+        csvData = CSVToArray(contents);
+        // 初始化索引
+        document.getElementById("indexInput").value = 0;
+        displayRow();
+        displayImage();
+        updateFields();
+      };
+      reader.readAsText(file);
+    }
+
+    // 将CSV内容转换为二维数组
+    function CSVToArray(csvContent) {
+      var lines = csvContent.split("\n");
+      var result = [];
+    
+      if (lines.length > 0) {
+        var headers = lines[0].split(","); // 获取第一行作为表头
+    
+        for (var i = 1; i < lines.length; i++) {
+          var line = lines[i].trim();
+          if (line !== "") {
+            var row = [];
+            var currentIndex = 0;
+            var inQuotes = false;
+    
+            for (var j = 0; j < line.length; j++) {
+              var currentChar = line[j];
+    
+              if (currentChar === '"') {
+                // 切换引号状态
+                inQuotes = !inQuotes;
+              } else if (currentChar === "," && !inQuotes) {
+                // 遇到逗号且不在引号内，则表示一个单元格结束
+                row.push(line.substring(currentIndex, j));
+                currentIndex = j + 1;
+              }
+            }
+    
+            // 处理最后一个单元格
+            row.push(line.substring(currentIndex));
+            result.push(row);
+          }
+        }
+      }
+    
+      return result;
+    }
+
+    // 显示特定行的信息
+    function displayRow() {
+      var index = document.getElementById("indexInput").value;
+      var csvTable = document.getElementById("csvTable");
+      csvTable.innerHTML = ""; // 清空 csvTable
+      filenameTable.innerHTML = ""; // 清空 filenameTable
+    
+      if (csvData && index >= 0 && index < csvData.length) {
+        var row = csvData[index];
+        var headerRow = document.createElement("tr");
+        var headerData = ['序号', '问题', '翻译', '回答', 'VG指导', '翻译']; // 第一行作为表头
+    
+        // 添加表头到 csvTable
+        for (var i = 0; i < headerData.length; i++) {
+          var headerCell = document.createElement("th");
+          headerCell.textContent = headerData[i];
+          headerRow.appendChild(headerCell);
+        }
+        csvTable.appendChild(headerRow);
+
+        // 添加数据到 csvTable
+        for (var i = 2; i < 26; i += 5) {
+          var dataRow = document.createElement("tr");
+
+          // 添加 VQA 序号
+          var vqaCell = document.createElement("td");
+          vqaCell.textContent = Math.floor(i / 5) + 1; // 当前是第几个 VQA
+          dataRow.appendChild(vqaCell);
+
+          // 为每组三个单元格设置背景色
+          var groupColor = (Math.floor(i / 5) % 2 === 0) ? '#f9f9f9' : '#ffffff'; // 偶数组为灰色，奇数组为白色
+          for (var j = 0; j < 5; j++) {
+              if (i + j < row.length + 2) { // 确保不越界
+                  var dataCell = document.createElement("td");
+                  dataCell.textContent = row[i + j]; // 假设从第二列开始填充数据
+                  dataCell.style.backgroundColor = groupColor; // 设置背景色
+                  dataRow.appendChild(dataCell);
+              }
+          }
+          csvTable.appendChild(dataRow);
+        }
+
+        // 显示文件名在 filenameTable
+        var filenameRow = document.createElement("tr");
+
+        // 添加序号
+        var indexCell = document.createElement("td");
+        indexCell.textContent = "数据序号"; // 标签
+        filenameRow.appendChild(indexCell);
+
+        var indexValueCell = document.createElement("td");
+        indexValueCell.textContent = row[0]; // 序号值
+        filenameRow.appendChild(indexValueCell);
+
+        // 添加文件名
+        var filenameCell = document.createElement("td");
+        filenameCell.textContent = "文件名"; // 标签
+        filenameRow.appendChild(filenameCell);
+
+        var filenameValueCell = document.createElement("td");
+        filenameValueCell.textContent = row[1]; // 假设文件名在 row[1] 中
+        filenameRow.appendChild(filenameValueCell);
+
+        filenameTable.appendChild(filenameRow);
+      }
+    }
+
+    function displayImage() {
+      var imageElement = document.getElementById("Image");
+
+      // 清空图像路径
+      imageElement.removeAttribute("src");
+
+      var index = document.getElementById("indexInput").value;
+      var row = csvData[index];
+
+      imagePath = folderPath + row[1];
+      //console.log(imagePath); // 在控制台打印图像路径
+      //console.log(gt_path); // 在控制台打印图像路径
+      imageElement.src = imagePath;
+      
+      // 在图像加载后绘制边界框
+      imageElement.onload = () => {
+        loadBboxes();
+      };
+
+      // 将复选框状态置为未选
+      var toggleControl = document.getElementById("toggleControl3");
+      toggleControl.checked = false; // 设置复选框为未选状态
+    }
+
+    let username = ''; // 定义全局变量存储用户名
+    // 允许的用户名列表
+    const validUsernames = ['a1', 'a2', 'b1', 'b2', 'c1', 'c2', 'val'];
+    // 全局变量存储每张图片的标注数据
+    const annotations = {};
+
+    // 读取存储在json文件中的标注数据
+    function loadAnnotations() {
+        const filename = `annotation_buffer/annotations-${username}.json`; // 使用用户选择的用户名生成文件名
+    
+        fetch(filename)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('File not found');
+                }
+                return response.json();
+            })
+            .then(data => {
+                Object.assign(annotations, data);
+                console.log('Annotations loaded:', annotations);
+            })
+            .catch(error => console.error('Error loading annotations:', error));
+    }
+
+    // 弹出提示框选择用户
+    function selectUser() {
+      while (!username || !validUsernames.includes(username)) {
+          username = prompt("请输入用户名：\na1, a2, b1, b2, c1, c2, val");
+      
+          if (!username) {
+              alert('用户名不能为空，请输入用户名以访问页面。');
+          } else if (!validUsernames.includes(username)) {
+              alert('无效的用户名，请选择有效的用户名。');
+          }
+      }
+    
+      loadAnnotations(username); // 加载对应用户的标注数据
+    }
+
+    // 页面加载时选择用户
+    window.onload = selectUser;
+
+    let bboxes = [];
+    let selectedBboxes = [];
+    let scale = 1; // 初始缩放比例
+    let offsetX = 0; // 图像位置
+    let offsetY = 0;
+
+    // 读取边界框数据
+    function loadBboxes() {
+      const index = document.getElementById("indexInput").value;
+      const row = csvData[index]; // 假设csvData是全局变量
+      const bbox_Path = `${bboxPath+row[1].split('.')[0]}.txt`;
+
+      // 清空selectedBboxes
+      selectedBboxes = [];
+      // 自动加载之前的标注数据
+      const imageName = row[1].split('.')[0];
+      if (annotations[imageName]) {
+        selectedBboxes = annotations[imageName]; // 加载之前的标注
+      }
+
+      fetch(bbox_Path)
+          .then(response => response.text())
+          .then(data => {
+              bboxes = [];
+              const lines = data.split('\n');
+              lines.forEach(line => {
+                  const parts = line.trim().split(' ');
+                  if (parts.length >= 14) {
+                      const bboxData = {
+                          type: parts[0],
+                          bbox2d: parts.slice(4, 8).map(Number)
+                      };
+                      bboxes.push(bboxData);
+                  }
+              });
+              drawBboxes();
+          })
+          .catch(error => console.error('Error loading bounding boxes:', error));
+     }
+
+
+    // 定义点击事件处理程序
+    function handleBboxClick(bbox) {
+      const toggleControl = document.getElementById("toggleControl1");
+      if (toggleControl.checked) {
+          return; // 如果复选框被选中，则不进行选取操作
+      }
+      
+      // 使用深度比较来检查边界框是否已被选中
+      const isSelected = selectedBboxes.some(selectedBbox => 
+          selectedBbox.type === bbox.type && 
+          JSON.stringify(selectedBbox.bbox2d) === JSON.stringify(bbox.bbox2d)
+      );
+  
+      if (isSelected) {
+          // 使用深度比较来移除选中的边界框
+          selectedBboxes = selectedBboxes.filter(selectedBbox => 
+              !(selectedBbox.type === bbox.type && 
+                JSON.stringify(selectedBbox.bbox2d) === JSON.stringify(bbox.bbox2d))
+          );
+      } else {
+          selectedBboxes.push(bbox); // 添加到选择列表
+      }
+  
+      drawBboxes(); // 重新绘制边界框
+  
+      // 自动保存标注数据
+      const index = document.getElementById("indexInput").value;
+      const row = csvData[index];
+      const imageName = row[1].split('.')[0];
+      annotations[imageName] = selectedBboxes;
+    }
+
+
+    // 绘制边界框
+    function drawBboxes() {
+      const index = document.getElementById("indexInput").value;
+      const row = csvData[index]; // 假设csvData是全局变量
+    
+      const bboxesContainer = document.getElementById('bboxesContainer');
+      bboxesContainer.innerHTML = ''; // 清空之前的边界框
+    
+      const imageElement = document.getElementById("Image");
+      const imgRect = imageElement.getBoundingClientRect(); // 获取缩放后的实际位置和大小
+      const imgLeft = imgRect.left;  // 获取缩放后的左边位置
+      const imgTop = imgRect.top;    // 获取缩放后的上边位置
+    
+      bboxes.forEach(bbox => {
+          const [x1, y1, x2, y2] = bbox.bbox2d;
+      
+          // 计算边界框的宽度和高度
+          const bboxWidth = (x2 - x1) * scale;
+          const bboxHeight = (y2 - y1) * scale;
+      
+          // 计算边界框的左上角位置
+          const left = imgLeft + (x1 * scale);
+          const top = imgTop + (y1 * scale);
+      
+          // 创建并设置边界框元素
+          const bboxElement = document.createElement('div');
+          bboxElement.className = 'bbox';
+          bboxElement.style.left = `${left}px`;
+          bboxElement.style.top = `${top}px`;
+          bboxElement.style.width = `${bboxWidth}px`;
+          bboxElement.style.height = `${bboxHeight}px`;
+      
+          // 如果边界框在选中列表中，添加选中样式
+          //if (selectedBboxes.includes(bbox)) {
+          if (selectedBboxes.some(b => JSON.stringify(b) === JSON.stringify(bbox))) {
+              bboxElement.classList.add('selected');
+          }
+        
+          // 创建文本元素并设置内容
+          const labelElement = document.createElement('div');
+          labelElement.className = 'bbox-label';
+          labelElement.innerText = bbox.type; // 假设 type 是要显示的名称
+          labelElement.style.position = 'absolute';
+          labelElement.style.left = `${left}px`; // 文本位置与边界框对齐
+          labelElement.style.top = `${top}px`; // 文本位置与边界框对齐
+          labelElement.style.transform = `translateY(-100%)`; // 使文本在边界框上方显示
+        
+          // 添加点击事件监听器
+          bboxElement.addEventListener('click', (event) => {
+              event.stopPropagation(); // 阻止事件冒泡到图片
+              handleBboxClick(bbox); // 调用外部处理程序
+          });
+        
+          // 添加到容器中
+          bboxesContainer.appendChild(bboxElement);
+          bboxesContainer.appendChild(labelElement);
+      });
+    }
+
+    // 控制标注框的显示与隐藏
+    const toggleControl3 = document.getElementById("toggleControl3");
+    toggleControl3.addEventListener('change', function() {
+        const labels = document.querySelectorAll('.bbox-label');
+        labels.forEach(label => {
+            label.style.display = this.checked ? 'none' : 'block'; // 根据复选框状态显示或隐藏标签
+        });
+
+        const bboxes = document.querySelectorAll('.bbox');
+        bboxes.forEach(bbox => {
+            bbox.style.display = this.checked ? 'none' : 'block'; // 根据复选框状态显示或隐藏边界框
+        });
+    });
+
+
+    function saveAnnotations() {
+      const jsonData = JSON.stringify({
+          username: username, // 将全局变量 username 添加到请求体
+          annotations: annotations, // 传递标注数据
+      }, null, 2);
+  
+      fetch('http://47.93.29.116:3000/save-annotations', {
+          method: 'POST',
+          headers: {
+              'Content-Type': 'application/json',
+          },
+          body: jsonData,
+      })
+      .then(response => {
+          if (response.ok) {
+              // 弹出对话框显示保存成功
+              alert('文件保存成功！');
+          } else {
+              // 弹出对话框显示保存失败
+              alert('保存文件时出错，请重试。');
+              console.error('Error saving file');
+          }
+      })
+      .catch(error => {
+          console.error('Error:', error);
+          alert('保存失败，请检查网络连接或服务器状态。');
+      });
+    }
+
+    // 下载按钮的事件处理
+    document.getElementById('downloadButton').addEventListener('click', function() {
+      if (!username) {
+          alert('请先选择用户名，才能下载标注数据。');
+          return; // 如果未选择用户名，则退出函数
+      }
+    
+      // 根据用户名生成文件的 URL
+      const fileUrl = `http://47.93.29.116:8081/annotation_buffer/annotations-${username}.json`; // 替换为实际文件的URL
+    
+      // 获取当前日期和时间并格式化
+      const now = new Date();
+      const dateString = now.toISOString().split('T')[0]; // 格式为 YYYY-MM-DD
+      const timeString = now.toTimeString().split(' ')[0].slice(0, 5); // 格式为 HH:MM
+      const fileName = `annotations_${username}_${dateString}_${timeString}.json`; // 添加用户名、日期和时间后缀
+    
+      const link = document.createElement('a');
+      link.href = fileUrl;
+      link.download = fileName; // 使用带用户名和日期的文件名
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    });
+
+
+    // 保存编辑好的文本数据，直接保存为txt文件，同时保存的数据来自可编辑文本框
+    function saveText() {
+      const index = document.getElementById("indexInput").value;
+      const row = csvData[index];
+      const imageName = row[1].split('.')[0];
+      const Q = document.getElementById("QInput").value;
+      const A = document.getElementById("AInput").value;
+      const VG = document.getElementById("VGInput").value;
+
+      // 获取 selector 的值
+      const selectorValue = document.getElementById("selector").value; // 替换为你的选择器 ID
+    
+      // 按照顺序构建文本数据
+      const textData = `${imageName}\n${Q}\n${A}\n${VG}\n\n`; // 每个信息分行
+    
+      // 将选择器值添加到文件名中
+      const fileName = `${imageName}_${selectorValue}.txt`; // 文件名格式
+    
+      const file = new Blob([textData], { type: 'text/plain' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(file);
+      a.download = fileName; // 使用包含选择器值的文件名
+      a.click();
+    }
+
+    // 添加事件监听器以保存选中的边界框
+    document.getElementById("saveButton").addEventListener("click", saveAnnotations);
+
+    const toggleControl = document.getElementById('toggleControl1');
+    const toggleControl2 = document.getElementById('toggleControl2');
+
+    // 同步复选框
+    toggleControl.addEventListener('change', () => {
+        toggleControl2.checked = toggleControl.checked;
+    });
+    toggleControl2.addEventListener('change', () => {
+        toggleControl.checked = toggleControl2.checked;
+    });
+
+
+    // 控制图片缩放
+    document.getElementById("Image").addEventListener("wheel", function(event) {  
+      if (!toggleControl.checked) return; // 如果未勾选，则返回
+      event.preventDefault(); // 防止页面滚动
+        if (event.deltaY < 0) {
+            scale += 0.1; // 放大
+        } else {
+            scale = Math.max(0.1, scale - 0.1); // 缩小，最小值为0.1
+        }
+        this.style.transform = `scale(${scale})`; // 更新缩放
+        const imgRect = this.getBoundingClientRect(); // 获取缩放后的实际位置
+    });
+
+
+    // 实现拖动功能
+    let isDragging = false;
+    let startX, startY, initialX, initialY;
+    const imageElement = document.getElementById("Image");
+
+    imageElement.addEventListener("mousedown", function(event) {
+      if (!toggleControl.checked) return; // 如果未勾选，则返回
+
+        isDragging = true;
+        startX = event.clientX;
+        startY = event.clientY;
+        initialX = this.offsetLeft;
+        initialY = this.offsetTop;
+        this.style.cursor = "grabbing";
+        event.preventDefault(); // Prevent default dragging
+    });
+
+    document.addEventListener("mousemove", function(event) {
+      if (!toggleControl.checked) return; // 如果未勾选，则返回
+
+      if (isDragging) {
+          const dx = event.clientX - startX;
+          const dy = event.clientY - startY;
+          imageElement.style.left = `${initialX + dx}px`;
+          imageElement.style.top = `${initialY + dy}px`;
+      }
+    });
+
+    document.addEventListener("mouseup", function() {
+      if (!toggleControl.checked) return; // 如果未勾选，则返回
+
+      isDragging = false;
+      imageElement.style.cursor = "grab";
+      drawBboxes(); // 重新绘制边界框
+    });
+
+
+    function updateFields() {
+      const selector = document.getElementById('selector');
+      const value = selector.value;
+      const fieldsDiv = document.getElementById('editableFields');
+      fieldsDiv.innerHTML = ''; // 清空之前的内容
+    
+      if (value) {
+          const index = document.getElementById("indexInput").value;
+          const row = csvData[index];
+      
+          // 生成文件名，假设文件名与 imageName 相关
+          const imageName = row[1].split('.')[0];
+          const selectorValue = document.getElementById("selector").value; // 替换为你的选择器 ID
+          const txtFileName = `\\text\\${imageName}_${selectorValue}.txt`;
+      
+          // 检查是否存在 TXT 文件
+          fetch(txtFileName)
+              .then(response => {
+                  if (response.ok) {
+                      return response.text(); // 读取文本内容
+                  }
+              })
+              .then(text => {
+                  const lines = text.split('\n');
+                  const Q = lines[1] ? lines[1].replace('Q: ', '') : ''; // 提取 Q
+                  const A = lines[2] ? lines[2].replace('A: ', '') : ''; // 提取 A
+                  const VG = lines[3] ? lines[3].replace('VG: ', '') : ''; // 提取 VG
+              
+                  // 创建可编辑文本框
+                  createEditableFields(Q, A, VG, fieldsDiv);
+              })
+              .catch(() => {
+                  // 如果没有 TXT 文件，则使用 CSV 数据
+                  const Q = row[parseInt(value - 1) * 5 + 2]; // Q 的索引
+                  const A = row[parseInt(value - 1) * 5 + 4]; // A 的索引
+                  const VG = row[parseInt(value - 1) * 5 + 5]; // VG 的索引
+              
+                  // 创建可编辑文本框
+                  createEditableFields(Q, A, VG, fieldsDiv);
+              });
+      }
+    }
+  
+    function createEditableFields(Q, A, VG, fieldsDiv) {
+        const QLabel = document.createElement('label');
+        QLabel.innerText = 'Q: ';
+        const QInput = document.createElement('textarea');
+        QInput.value = Q;
+        QInput.id = 'QInput'; 
+        QInput.className = 'editable-textarea'; // 添加类名
+    
+        const ALabel = document.createElement('label');
+        ALabel.innerText = 'A: ';
+        const AInput = document.createElement('textarea');
+        AInput.value = A;
+        AInput.id = 'AInput'; 
+        AInput.className = 'editable-textarea'; // 添加类名
+    
+        const VGLabel = document.createElement('label');
+        VGLabel.innerText = 'VG: ';
+        const VGInput = document.createElement('textarea');
+        VGInput.value = VG;
+        VGInput.id = 'VGInput'; 
+        VGInput.className = 'editable-textarea'; // 添加类名
+    
+        // 将创建的元素添加到字段容器
+        fieldsDiv.appendChild(QLabel);
+        fieldsDiv.appendChild(QInput);
+        fieldsDiv.appendChild(document.createElement('br')); // 换行
+        fieldsDiv.appendChild(ALabel);
+        fieldsDiv.appendChild(AInput);
+        fieldsDiv.appendChild(document.createElement('br')); // 换行
+        fieldsDiv.appendChild(VGLabel);
+        fieldsDiv.appendChild(VGInput);
+    }
+
+    document.getElementById('selector').addEventListener('change', function() {
+      this.blur(); // 选择后失去焦点
+    });
+
+
+    // 显示上一行
+    function displayPreviousRow() {
+        var indexInput = document.getElementById("indexInput");
+        var currentIndex = parseInt(indexInput.value);
+        if (currentIndex > 0) {
+          indexInput.value = currentIndex - 1;
+          displayRow();
+          displayImage();
+          updateFields();
+        }
+      }
+
+    // 显示下一行
+    function displayNextRow() {
+      var indexInput = document.getElementById("indexInput");
+      var currentIndex = parseInt(indexInput.value);
+      if (currentIndex < csvData.length - 1) {
+        indexInput.value = currentIndex + 1;
+        displayRow();
+        displayImage();
+        updateFields();
+      }
+    }
+
+    document.addEventListener("keydown", function(event) {
+      if (event.key === "ArrowUp") {
+        displayPreviousRow();
+      } else if (event.key === "ArrowDown") {
+        displayNextRow();
+      } else if (event.key === "ArrowLeft") {
+        displayPreviousRow();
+      } else if (event.key === "ArrowRight") {
+        displayNextRow();
+      }
+    });
+
+    // 切换暗黑模式
+    function toggleDarkMode() {
+      var body = document.body;
+      body.classList.toggle('dark-mode');
+    }
+
+    function toggleDescription() {
+      const description = document.getElementById("description");
+      if (description.style.display === "none" || description.style.display === "") {
+          description.style.display = "block"; // 显示内容
+      } else {
+          description.style.display = "none"; // 隐藏内容
+      }
+    }
+
+  </script>
+</body>
+</html>
