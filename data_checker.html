@@ -141,6 +141,30 @@
             display: none; /* 初始隐藏 */
             background-color: #fff; /* 背景颜色 */
         }
+        .progress-bar {
+            width: 8%;
+            background-color: #f3f3f3;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            overflow: hidden;
+            margin-top: 10px;
+            position: relative;
+            display: flex; /* 使用 flex 布局 */
+            align-items: center; /* 垂直居中 */
+        }
+        .progress-bar-inner {
+          width: 0;
+          height: 30px;
+          background-color: #4caf50;
+        }
+        .progress-bar-text {
+          position: absolute;
+          width: 100%;
+          text-align: center;
+          line-height: 30px;
+          color: black;
+          white-space: nowrap; /* 防止文本换行 */
+        }
       </style>
       </head>
 <body>
@@ -165,7 +189,7 @@
       【5】在下方选择框中选择五个中最好的VQA问题，即可在下方文本框中编辑问题、回答和VG指导信息。<br>
       【6】编辑完成后点击“保存编辑好的文本数据”按钮即可保存编辑好的文本数据。注意对于每一条数据，都要进行保存，切换后已遍及的数据不会自动保存。<br>
       【7】最后点击“导出全部标注信息”按钮即可导出所有标注信息。不需要每次都点击，只需在所有数据都编辑完后点击一次即可。<br>
-      相关问题请移步微信群讨论:>
+      相关问题请移步Github讨论: <a href="https://github.com/rohnson1999/VQA_data_checker">VQA_data_checker</a>
     </p>
   </div>
 
@@ -200,6 +224,10 @@
       <input type="checkbox" id="toggleControl3">
       隐藏标注框
     </label>
+    <div class="progress-bar">
+      <div class="progress-bar-inner" id="progressBar"></div>
+      <div class="progress-bar-text" id="progressBarText">0%</div>
+    </div>
   </div>
 
   <table id="filenameTable"></table>
@@ -374,6 +402,7 @@
       // 在图像加载后绘制边界框
       imageElement.onload = () => {
         loadBboxes();
+        updateProgressBar(); // 更新进度条
       };
 
       // 将复选框状态置为未选
@@ -386,7 +415,17 @@
     const validUsernames = ['a1', 'a2', 'b1', 'b2', 'c1', 'c2', 'val'];
     // 全局变量存储每张图片的标注数据
     const annotations = {};
-
+    // 全局变量存储每个用户的标注数量
+    const userAnnotationsCount = {
+      'a1': 5042,
+      'a2': 5041,
+      'b1': 5042,
+      'b2': 5040,
+      'c1': 5042,
+      'c2': 5038,
+      'val': 4675
+    };
+    console.log('User annotations count of a1:', userAnnotationsCount[username]);
     // 读取存储在json文件中的标注数据
     function loadAnnotations() {
         const filename = `annotation_buffer/annotations-${username}.json`; // 使用用户选择的用户名生成文件名
@@ -422,6 +461,16 @@
 
     // 页面加载时选择用户
     window.onload = selectUser;
+
+    function updateProgressBar() {
+      const totalImages = Object.keys(annotations).filter(key => annotations[key] && annotations[key].length > 0).length;
+      const totalAnnotations = parseInt(userAnnotationsCount[username], 10); // 确保 totalAnnotations 是整数
+      const progressPercentage = (totalImages / totalAnnotations) * 100;
+      const progressBar = document.getElementById('progressBar');
+      const progressBarText = document.getElementById('progressBarText');
+      progressBar.style.width = `${progressPercentage}%`;
+      progressBarText.textContent = `${progressPercentage.toFixed(2)}% (${totalImages}/${totalAnnotations})`;
+    }
 
     let bboxes = [];
     let selectedBboxes = [];
@@ -598,6 +647,7 @@
           console.error('Error:', error);
           alert('保存失败，请检查网络连接或服务器状态。');
       });
+      updateProgressBar(); // 更新进度条
     }
 
     // 下载按钮的事件处理
